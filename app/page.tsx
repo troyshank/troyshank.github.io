@@ -142,49 +142,35 @@ export default function Home() {
   };
 
   return (
-    <main>
-      <header className="app-header">
-        <a className="brand" href="#"><span className="brand-mark">S</span><span><strong>Sprout</strong><small>CODE LAB</small></span></a>
-        <div className="header-center"><span className="status-dot"></span>Map Studio</div>
-        <div className="header-actions"><span className="score">★ {completed.size} complete</span><button className="icon-button" aria-label="Help">?</button></div>
+    <main className="game-shell">
+      <header className="topbar">
+        <a className="brand" href="#"><span className="brand-mark">S</span><span><strong>SPROUT</strong><small>MAZE ACADEMY</small></span></a>
+        <nav><button className="nav-active">Adventure</button><button>My progress</button><button>How to play</button></nav>
+        <div className="player-stats"><span className="stat-pill"><i>★</i><b>{completed.size}</b> cleared</span><span className="avatar">🦊</span></div>
       </header>
-
-      <section className="mission-bar">
-        <div className="mission-copy"><span className="eyebrow">CHALLENGE {String(levelIndex + 1).padStart(2, "0")}</span><h1>{level.name}</h1><p>{level.hint}</p></div>
-        <div className="level-progress"><div className="progress-meta"><b>Course progress</b><span>{levelIndex + 1} / {levels.length}</span></div><div className="progress-track"><i style={{ width: `${((levelIndex + 1) / levels.length) * 100}%` }}></i></div></div>
-        <div className="map-navigation"><button onClick={previousLevel} aria-label="Previous map">←</button><select value={levelIndex} onChange={(event) => { const next = Number(event.target.value); setLevelIndex(next); setPosition(levels[next].start); setBlocks([]); setWon(false); setMessage("Map loaded. Build your path!"); }} aria-label="Choose map">{levels.map((item, index) => <option value={index} key={index}>Map {index + 1}: {item.name}</option>)}</select><button onClick={nextLevel} aria-label="Next map">→</button></div>
+      <section className="hero-card">
+        <img src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/sprout-world.png`} alt="Pip overlooking an ancient maze" />
+        <div className="hero-shade"></div>
+        <div className="hero-copy"><span className="chapter">CHAPTER {Math.floor(levelIndex / 10) + 1} · THE ANCIENT PATHS</span><h1>{level.name}</h1><p>{level.hint}</p><div className="hero-tags"><span>MAP {String(levelIndex + 1).padStart(2, "0")}</span><span>CODE QUEST</span><span>{level.prize} GOAL</span></div></div>
+        <div className="hero-progress"><div><span>Adventure progress</span><b>{levelIndex + 1} of {levels.length}</b></div><div className="progress-track"><i style={{ width: `${((levelIndex + 1) / levels.length) * 100}%` }}></i></div></div>
       </section>
-
-      <section className="studio map-studio">
-        <aside className="palette panel">
-          <div className="panel-title"><span>01</span><div><b>Command library</b><small>Choose a movement block</small></div></div>
-          <div className="direction-grid">{moves.map((move) => <button key={move.move} className="direction-button" onClick={() => add(move)} disabled={running}><i>{move.icon}</i><b>{move.label}</b><span>＋</span></button>)}</div>
-          <div className="helper"><span>i</span><div><b>Build, test, improve</b><p>Start with a few moves. Run your code and adjust the path.</p></div></div>
+      <section className="workspace">
+        <section className="arena-card">
+          <div className="card-heading"><div><span className="live-dot"></span><small>LIVE MAZE</small><h2>Navigate the stone halls</h2></div><div className="map-navigation"><button onClick={previousLevel}>←</button><select value={levelIndex} onChange={(event) => { const next = Number(event.target.value); setLevelIndex(next); setPosition(levels[next].start); setBlocks([]); setWon(false); setMessage("Map loaded. Build your path!"); }}>{levels.map((item, index) => <option value={index} key={index}>Map {index + 1} · {item.name}</option>)}</select><button onClick={nextLevel}>→</button></div></div>
+          <div className="map-frame"><div className="map-board">{Array.from({ length: 195 }, (_, tile) => <div className={hallways.has(tile) ? "hallway-tile" : "stone-tile"} key={tile}>{tile === displayTile(level.goal) && <div className="goal">{level.prize}</div>}{tile === displayTile(position) && <div className={`map-pip ${running ? "walking" : ""}`}>🦊</div>}</div>)}{won && <div className="win-card"><span>🎉</span><b>Quest complete!</b><button onClick={nextLevel}>Next adventure →</button></div>}</div></div>
+          <div className="arena-footer"><div className={`map-message ${won ? "success" : ""}`}><span>{won ? "✓" : running ? "●" : "i"}</span>{message}</div><div className="legend"><span>🦊 Pip</span><span>{level.prize} Goal</span><span>▰ Stone</span></div></div>
+        </section>
+        <aside className="code-console">
+          <div className="console-heading"><div><small>CODE BUILDER</small><h2>Program Pip</h2></div><span>{blocks.length} / 60</span></div>
+          <div className="command-dock">{moves.map((move) => <button key={move.move} className="direction-button" onClick={() => add(move)} disabled={running}><i>{move.icon}</i><span>{move.label.replace("move ", "")}</span><b>＋</b></button>)}</div>
+          <div className="timeline-head"><span className="start-gem">▶</span><div><b>On adventure start</b><small>Runs from top to bottom</small></div></div>
+          <div className="script-list">{!blocks.length && <div className="empty"><span>＋</span><b>Build your first route</b><p>Choose a direction above to add a command.</p></div>}{blocks.map((block, i) => <div className={`path-block ${active === block.id ? "active" : ""}`} key={block.id}><span>{String(i + 1).padStart(2, "0")}</span><i>{block.icon}</i><b>{block.label}</b><button disabled={running} onClick={() => setBlocks((old) => old.filter((b) => b.id !== block.id))}>×</button></div>)}</div>
+          <div className="script-actions"><button disabled={!blocks.length || running} onClick={() => setBlocks((old) => old.slice(0, -1))}>↶ Undo</button><button disabled={!blocks.length || running} onClick={() => reset(true)}>Clear route</button></div>
+          <div className="run-dock"><button className="play" onClick={play} disabled={!blocks.length || running}><span>▶</span>{running ? "Running…" : "Run my code"}</button><button className="reset" onClick={() => reset(false)} disabled={running}>↻</button></div>
+          <div className="coach-tip"><span>✦</span><p><b>Pip&apos;s tip</b> Test a short route first, then add more commands.</p></div>
         </aside>
-
-        <section className="script panel">
-          <div className="panel-title"><span>02</span><div><b>Program</b><small>Commands run top to bottom</small></div></div>
-          <div className="flag-block"><span>▶</span><b>When program starts</b></div>
-          <div className="script-list">
-            {!blocks.length && <div className="empty"><span>☝️</span><b>Your direction blocks go here</b><p>Which way should Pip move first?</p></div>}
-            {blocks.map((block, i) => <div className={`path-block ${active === block.id ? "active" : ""}`} key={block.id}><span>{i + 1}</span><i>{block.icon}</i><b>{block.label}</b><button disabled={running} onClick={() => setBlocks((old) => old.filter((b) => b.id !== block.id))} aria-label={`Remove ${block.label}`}>×</button></div>)}
-          </div>
-          <div className="script-actions"><button disabled={!blocks.length || running} onClick={() => setBlocks((old) => old.slice(0, -1))}>↶ Undo</button><button disabled={!blocks.length || running} onClick={() => reset(true)}>Clear all</button></div>
-        </section>
-
-        <section className="stage-wrap panel map-panel">
-          <div className="panel-title stage-title"><span>03</span><div><b>Live preview</b><small>Guide Pip to {level.prize}</small></div><div className="legend"><span>🦊 Pip</span><span>{level.prize} Goal</span><span>▰ Stone</span></div></div>
-          <div className="map-board">
-            {Array.from({ length: 195 }, (_, tile) => <div className={hallways.has(tile) ? "hallway-tile" : "stone-tile"} key={tile}>
-              {tile === displayTile(level.goal) && <div className="goal" aria-label="Goal">{level.prize}</div>}
-              {tile === displayTile(position) && <div className={`map-pip ${running ? "walking" : ""}`} aria-label="Pip">🦊</div>}
-            </div>)}
-            {won && <div className="win-card"><span>🎉</span><b>Goal reached!</b><button onClick={nextLevel}>Next map →</button></div>}
-          </div>
-          <div className={`map-message ${won ? "success" : ""}`}><span>{won ? "✓" : running ? "●" : "i"}</span>{message}</div>
-          <div className="play-row"><button className="play" onClick={play} disabled={!blocks.length || running}><span>▶</span>{running ? "Running program…" : "Run program"}</button><button className="reset" onClick={() => reset(false)} disabled={running}><span>↻</span> Reset</button></div>
-        </section>
       </section>
+      <footer><span>SPROUT MAZE ACADEMY</span><p>Learn to think like a coder — one adventure at a time.</p><b>50 handcrafted quests</b></footer>
     </main>
   );
 }
