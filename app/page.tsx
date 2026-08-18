@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 
 type Move = "up" | "down" | "left" | "right";
 type CodeBlock = { id: number; move: Move; icon: string; label: string };
-type Level = { name: string; hint: string; start: number; goal: number; rocks: number[]; obstacle: string; prize: string };
+type Level = { name: string; hint: string; start: number; goal: number; openings: Set<string>; prize: string };
 
 const moves: Omit<CodeBlock, "id">[] = [
   { move: "up", icon: "↑", label: "move up" },
@@ -14,11 +14,11 @@ const moves: Omit<CodeBlock, "id">[] = [
 ];
 
 const themes = [
-  { place: "Meadow", obstacle: "🪨", prize: "⭐", hint: "Go around the rocks to reach the shining star!" },
-  { place: "Woods", obstacle: "🌲", prize: "🍎", hint: "Find a safe path between the trees." },
-  { place: "Garden", obstacle: "🌻", prize: "🦋", hint: "Wind through the flowers to meet the butterfly." },
-  { place: "Mountain", obstacle: "⛰️", prize: "🏰", hint: "Climb around the mountains to reach the castle." },
-  { place: "Pond", obstacle: "💧", prize: "🐸", hint: "Keep your paws dry and find the friendly frog." },
+  { place: "Meadow", prize: "⭐", hint: "Follow the hallways to reach the shining star!" },
+  { place: "Woods", prize: "🍎", hint: "Navigate the woodland corridors to find the apple." },
+  { place: "Garden", prize: "🦋", hint: "Turn through the garden maze to meet the butterfly." },
+  { place: "Mountain", prize: "🏰", hint: "Climb the winding passages to reach the castle." },
+  { place: "Pond", prize: "🐸", hint: "Follow the waterside halls to find the friendly frog." },
 ];
 const adventures = ["Walk", "Trail", "Quest", "Crossing", "Puzzle", "Path", "Adventure", "Journey", "Challenge", "Maze"];
 
@@ -27,16 +27,31 @@ function randomFor(seed: number) {
   return () => { value = (value * 1664525 + 1013904223) >>> 0; return value / 4294967296; };
 }
 
-function pathLength(start: number, goal: number, blocked: Set<number>) {
-  const queue: [number, number][] = [[start, 0]], seen = new Set([start]);
-  while (queue.length) {
-    const [cell, distance] = queue.shift()!;
-    if (cell === goal) return distance;
-    const row = Math.floor(cell / 7), col = cell % 7;
-    const nearby = [row > 0 ? cell - 7 : -1, row < 5 ? cell + 7 : -1, col > 0 ? cell - 1 : -1, col < 6 ? cell + 1 : -1];
-    for (const next of nearby) if (next >= 0 && !blocked.has(next) && !seen.has(next)) { seen.add(next); queue.push([next, distance + 1]); }
+const edgeKey = (a: number, b: number) => a < b ? `${a}-${b}` : `${b}-${a}`;
+const neighbors = (cell: number) => {
+  const row = Math.floor(cell / 7), col = cell % 7;
+  return [row > 0 ? cell - 7 : -1, row < 5 ? cell + 7 : -1, col > 0 ? cell - 1 : -1, col < 6 ? cell + 1 : -1].filter((next) => next >= 0);
+};
+
+function makeHallways(start: number, random: () => number, extraOpenings: number) {
+  const visited = new Set([start]), stack = [start], openings = new Set<string>();
+  while (stack.length) {
+    const cell = stack[stack.length - 1];
+    const choices = neighbors(cell).filter((next) => !visited.has(next));
+    if (!choices.length) { stack.pop(); continue; }
+    const next = choices[Math.floor(random() * choices.length)];
+    openings.add(edgeKey(cell, next)); visited.add(next); stack.push(next);
   }
-  return -1;
+  const closed: string[] = [];
+  for (let cell = 0; cell < 42; cell++) for (const next of neighbors(cell)) {
+    const edge = edgeKey(cell, next);
+    if (!openings.has(edge) && !closed.includes(edge)) closed.push(edge);
+  }
+  for (let i = 0; i < extraOpenings && closed.length; i++) {
+    const pick = Math.floor(random() * closed.length);
+    openings.add(closed.splice(pick, 1)[0]);
+  }
+  return openings;
 }
 
 function makeLevels(): Level[] {
@@ -45,18 +60,9 @@ function makeLevels(): Level[] {
     const random = randomFor(7001 + index * 97);
     const start = 35 + Math.floor(random() * 7);
     const goal = Math.floor(random() * 7);
-    const obstacleCount = Math.min(13, 4 + Math.floor(index / 5));
-    let rocks: number[] = [];
-    for (let attempt = 0; attempt < 200; attempt++) {
-      const picked = new Set<number>();
-      while (picked.size < obstacleCount) {
-        const cell = Math.floor(random() * 42);
-        if (cell !== start && cell !== goal) picked.add(cell);
-      }
-      const distance = pathLength(start, goal, picked);
-      if (distance >= 7 && distance <= 18) { rocks = [...picked]; break; }
-    }
-    return { name: `${theme.place} ${adventures[Math.floor(index / 5)]}`, hint: theme.hint, start, goal, rocks, obstacle: theme.obstacle, prize: theme.prize };
+    const extraOpenings = Math.max(1, 9 - Math.floor(index / 6));
+    const openings = makeHallways(start, random, extraOpenings);
+    return { name: `${theme.place} ${adventures[Math.floor(index / 5)]}`, hint: theme.hint, start, goal, openings, prize: theme.prize };
   });
 }
 
@@ -75,7 +81,7 @@ export default function Home() {
   const level = levels[levelIndex];
 
   const add = (move: Omit<CodeBlock, "id">) => {
-    if (running || blocks.length >= 18) return;
+    if (running || blocks.length >= 60) return;
     setBlocks((old) => [...old, { ...move, id: nextId.current++ }]);
     setMessage("Great! Keep going or press Play.");
   };
@@ -116,7 +122,7 @@ export default function Home() {
       setActive(block.id);
       const next = destination(current, block.move);
       if (next === current) { setMessage("Oops—Pip reached the edge! Fix a block and try again."); setRunning(false); setActive(null); return; }
-      if (level.rocks.includes(next)) { setMessage("Bonk! There’s a rock there. Try another direction."); setRunning(false); setActive(null); return; }
+      if (!level.openings.has(edgeKey(current, next))) { setMessage("That way is blocked by a wall. Try another direction."); setRunning(false); setActive(null); return; }
       current = next; setPosition(current);
       await new Promise((r) => setTimeout(r, 520));
       if (current === level.goal) { setWon(true); setCompleted((old) => new Set(old).add(levelIndex)); setMessage("You reached the goal! Amazing coding! ⭐"); setRunning(false); setActive(null); return; }
@@ -156,13 +162,16 @@ export default function Home() {
         </section>
 
         <section className="stage-wrap panel map-panel">
-          <div className="panel-title stage-title"><span>03</span><div><b>Live preview</b><small>Guide Pip to {level.prize}</small></div><div className="legend"><span>🦊 Pip</span><span>{level.prize} Goal</span><span>{level.obstacle} Blocked</span></div></div>
+          <div className="panel-title stage-title"><span>03</span><div><b>Live preview</b><small>Guide Pip to {level.prize}</small></div><div className="legend"><span>🦊 Pip</span><span>{level.prize} Goal</span><span>▰ Walls</span></div></div>
           <div className="map-board">
-            {Array.from({ length: 42 }, (_, cell) => <div className={`map-cell ${(Math.floor(cell / 7) + cell) % 2 ? "grass-two" : ""}`} key={cell}>
+            {Array.from({ length: 42 }, (_, cell) => {
+              const row = Math.floor(cell / 7), col = cell % 7;
+              const wall = "3px solid #294d3f", open = "3px solid transparent";
+              const style = { borderTop: row === 0 || !level.openings.has(edgeKey(cell, cell - 7)) ? wall : open, borderLeft: col === 0 || !level.openings.has(edgeKey(cell, cell - 1)) ? wall : open, borderRight: col === 6 ? wall : open, borderBottom: row === 5 ? wall : open };
+              return <div className={`map-cell ${(row + col) % 2 ? "grass-two" : ""}`} style={style} key={cell}>
               {cell === level.goal && <div className="goal" aria-label="Goal">{level.prize}</div>}
-              {level.rocks.includes(cell) && <div className="rock" aria-label="Obstacle">{level.obstacle}</div>}
               {cell === position && <div className={`map-pip ${running ? "walking" : ""}`} aria-label="Pip">🦊</div>}
-            </div>)}
+            </div>})}
             {won && <div className="win-card"><span>🎉</span><b>Goal reached!</b><button onClick={nextLevel}>Next map →</button></div>}
           </div>
           <div className={`map-message ${won ? "success" : ""}`}><span>{won ? "✓" : running ? "●" : "i"}</span>{message}</div>
