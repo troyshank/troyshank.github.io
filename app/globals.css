@@ -13,3 +13,14 @@
 @media(max-width:830px){.header-center{display:none}.app-header{grid-template-columns:1fr 1fr}.mission-bar{gap:15px}.studio{grid-template-columns:1fr 1fr}.stage-wrap{grid-column:1/-1;min-height:520px}.palette,.script{min-height:400px}.map-board{max-width:650px}}
 @media(max-width:580px){.app-header{height:60px;padding:0 14px}.score{font-size:10px}.icon-button{display:none}.mission-bar{display:block;padding:15px 16px}.mission-copy p{font-size:11px}.map-navigation{margin-top:12px;width:100%}.map-navigation select{flex:1;max-width:none}.studio{display:flex;flex-direction:column;padding:10px}.stage-wrap{order:-1;min-height:435px}.palette,.script{min-height:auto}.direction-grid{grid-template-columns:repeat(4,1fr)}.direction-button{height:76px}.direction-button i{font-size:27px}.direction-button b{font-size:9px}.map-board{min-height:275px}.helper{margin-top:12px}.stage-title .legend{display:none}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* True corridor floor plan: walkable halls surrounded by solid masonry */
+.map-board{display:grid;grid-template-columns:repeat(15,1fr);grid-template-rows:repeat(13,1fr);gap:0;aspect-ratio:15/11.4;padding:0;border:9px solid #45433f;background:#57544f;overflow:hidden}
+.stone-tile,.hallway-tile{position:relative;display:grid;place-items:center;min-width:0;min-height:0}
+.stone-tile{z-index:2;background:linear-gradient(145deg,#85817a,#625f59);border:1px solid #46443f;box-shadow:inset 1px 1px #aaa59d,inset -1px -1px #4b4945}
+.stone-tile:nth-child(4n+2){background:linear-gradient(145deg,#77736d,#57544f)}
+.stone-tile:nth-child(7n+3){filter:brightness(.9)}
+.hallway-tile{z-index:1;background:#ddcfaa;box-shadow:inset 0 0 8px #8c785530}
+.hallway-tile::after{content:"";position:absolute;inset:16%;border-radius:2px;background:#f1e5c33b}
+.hallway-tile .goal{font-size:clamp(22px,2.5vw,36px);z-index:4}
+.hallway-tile .map-pip{font-size:clamp(24px,2.7vw,38px);z-index:5}

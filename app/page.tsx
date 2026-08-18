@@ -67,6 +67,16 @@ function makeLevels(): Level[] {
 }
 
 const levels = makeLevels();
+const displayTile = (cell: number) => (Math.floor(cell / 7) * 2 + 1) * 15 + ((cell % 7) * 2 + 1);
+function hallwayTiles(level: Level) {
+  const tiles = new Set<number>();
+  for (let cell = 0; cell < 42; cell++) tiles.add(displayTile(cell));
+  for (const opening of level.openings) {
+    const [a, b] = opening.split("-").map(Number);
+    tiles.add((displayTile(a) + displayTile(b)) / 2);
+  }
+  return tiles;
+}
 
 export default function Home() {
   const [levelIndex, setLevelIndex] = useState(0);
@@ -79,6 +89,7 @@ export default function Home() {
   const [completed, setCompleted] = useState<Set<number>>(new Set());
   const nextId = useRef(1);
   const level = levels[levelIndex];
+  const hallways = hallwayTiles(level);
 
   const add = (move: Omit<CodeBlock, "id">) => {
     if (running || blocks.length >= 60) return;
@@ -162,20 +173,12 @@ export default function Home() {
         </section>
 
         <section className="stage-wrap panel map-panel">
-          <div className="panel-title stage-title"><span>03</span><div><b>Live preview</b><small>Guide Pip to {level.prize}</small></div><div className="legend"><span>🦊 Pip</span><span>{level.prize} Goal</span><span>▰ Walls</span></div></div>
+          <div className="panel-title stage-title"><span>03</span><div><b>Live preview</b><small>Guide Pip to {level.prize}</small></div><div className="legend"><span>🦊 Pip</span><span>{level.prize} Goal</span><span>▰ Stone</span></div></div>
           <div className="map-board">
-            {Array.from({ length: 42 }, (_, cell) => {
-              const row = Math.floor(cell / 7), col = cell % 7;
-              const topWall = row === 0 || !level.openings.has(edgeKey(cell, cell - 7));
-              const leftWall = col === 0 || !level.openings.has(edgeKey(cell, cell - 1));
-              return <div className={`map-cell ${(row + col) % 2 ? "grass-two" : ""}`} key={cell}>
-              {topWall && <i className="maze-wall wall-top" aria-hidden="true"></i>}
-              {leftWall && <i className="maze-wall wall-left" aria-hidden="true"></i>}
-              {col === 6 && <i className="maze-wall wall-right" aria-hidden="true"></i>}
-              {row === 5 && <i className="maze-wall wall-bottom" aria-hidden="true"></i>}
-              {cell === level.goal && <div className="goal" aria-label="Goal">{level.prize}</div>}
-              {cell === position && <div className={`map-pip ${running ? "walking" : ""}`} aria-label="Pip">🦊</div>}
-            </div>})}
+            {Array.from({ length: 195 }, (_, tile) => <div className={hallways.has(tile) ? "hallway-tile" : "stone-tile"} key={tile}>
+              {tile === displayTile(level.goal) && <div className="goal" aria-label="Goal">{level.prize}</div>}
+              {tile === displayTile(position) && <div className={`map-pip ${running ? "walking" : ""}`} aria-label="Pip">🦊</div>}
+            </div>)}
             {won && <div className="win-card"><span>🎉</span><b>Goal reached!</b><button onClick={nextLevel}>Next map →</button></div>}
           </div>
           <div className={`map-message ${won ? "success" : ""}`}><span>{won ? "✓" : running ? "●" : "i"}</span>{message}</div>
