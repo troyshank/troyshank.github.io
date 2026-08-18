@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Move = "up" | "down" | "left" | "right";
 type CodeBlock = { id: number; move: Move; icon: string; label: string; steps: number };
@@ -88,9 +88,21 @@ export default function Home() {
   const [message, setMessage] = useState("Build a path, then press Play!");
   const [won, setWon] = useState(false);
   const [completed, setCompleted] = useState<Set<number>>(new Set());
+  const [openPanel, setOpenPanel] = useState<"progress" | "help" | null>(null);
   const nextId = useRef(1);
   const level = levels[levelIndex];
   const hallways = hallwayTiles(level);
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpenPanel(null); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, []);
+
+  const chooseLevel = (next: number) => {
+    setLevelIndex(next); setPosition(levels[next].start); setBlocks([]); setActive(null); setRunning(false); setWon(false); setOpenPanel(null);
+    setMessage("Map loaded. Build your path!");
+  };
 
   const add = (move: BlockTemplate) => {
     if (running || blocks.length >= 60) return;
@@ -152,7 +164,7 @@ export default function Home() {
     <main className="game-shell">
       <header className="topbar">
         <a className="brand" href="#"><span className="brand-mark">S</span><span><strong>SPROUT</strong><small>MAZE ACADEMY</small></span></a>
-        <nav><button className="nav-active">Adventure</button><button>My progress</button><button>How to play</button></nav>
+        <nav><button className={!openPanel ? "nav-active" : ""} onClick={() => setOpenPanel(null)}>Adventure</button><button className={openPanel === "progress" ? "nav-active" : ""} onClick={() => setOpenPanel("progress")}>My progress</button><button className={openPanel === "help" ? "nav-active" : ""} onClick={() => setOpenPanel("help")}>How to play</button></nav>
         <div className="player-stats"><span className="stat-pill"><i>★</i><b>{completed.size}</b> cleared</span><span className="avatar">🦊</span></div>
       </header>
       <section className="hero-card">
@@ -177,6 +189,20 @@ export default function Home() {
           <div className="coach-tip"><span>✦</span><p><b>Pip&apos;s tip</b> Test a short route first, then add more commands.</p></div>
         </aside>
       </section>
+      {openPanel && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpenPanel(null); }}><section className="info-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <button className="modal-close" onClick={() => setOpenPanel(null)} aria-label="Close">×</button>
+        {openPanel === "progress" ? <>
+          <div className="modal-hero"><span>★</span><div><small>YOUR ADVENTURE</small><h2 id="modal-title">My progress</h2><p>Every completed maze is saved for this play session.</p></div></div>
+          <div className="progress-cards"><article><b>{completed.size}</b><span>Maps cleared</span></article><article><b>{Math.round((completed.size / levels.length) * 100)}%</b><span>Academy complete</span></article><article><b>{levelIndex + 1}</b><span>Current map</span></article></div>
+          <div className="modal-progress"><span style={{ width: `${(completed.size / levels.length) * 100}%` }}></span></div>
+          <div className="map-grid">{levels.map((item, index) => <button className={completed.has(index) ? "map-done" : index === levelIndex ? "map-current" : ""} onClick={() => chooseLevel(index)} key={index}><span>{completed.has(index) ? "✓" : index + 1}</span><b>{item.name}</b><small>{completed.has(index) ? "Complete" : index === levelIndex ? "Playing now" : "Ready"}</small></button>)}</div>
+        </> : <>
+          <div className="modal-hero help-hero"><span>?</span><div><small>QUICK GUIDE</small><h2 id="modal-title">How to play</h2><p>Build a route, run it, and improve your code.</p></div></div>
+          <div className="guide-grid"><article><span>1</span><i>↑</i><div><b>Choose a direction</b><p>Tap up, down, left, or right in the command dock.</p></div></article><article><span>2</span><i>1×</i><div><b>Set the move count</b><p>Use − and + to choose 1–9 hallway spaces.</p></div></article><article><span>3</span><i>▶</i><div><b>Run your code</b><p>Pip follows each command from top to bottom.</p></div></article><article><span>4</span><i>↶</i><div><b>Debug and retry</b><p>If Pip meets a wall, change a direction or move count.</p></div></article></div>
+          <div className="wall-tip"><span>🦊</span><p><b>Your mission</b> Guide Pip through the beige hallways to the glowing goal. Solid gray stone cannot be crossed.</p></div>
+          <button className="start-playing" onClick={() => setOpenPanel(null)}>Start playing <span>→</span></button>
+        </>}
+      </section></div>}
       <footer><span>SPROUT MAZE ACADEMY</span><p>Learn to think like a coder — one adventure at a time.</p><b>50 handcrafted quests</b></footer>
     </main>
   );
