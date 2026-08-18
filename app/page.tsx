@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 
 type Move = "up" | "down" | "left" | "right";
 type CodeBlock = { id: number; move: Move; icon: string; label: string };
-type Level = { name: string; hint: string; start: number; goal: number; rocks: number[] };
+type Level = { name: string; hint: string; start: number; goal: number; rocks: number[]; obstacle: string; prize: string };
 
 const moves: Omit<CodeBlock, "id">[] = [
   { move: "up", icon: "↑", label: "move up" },
@@ -13,11 +13,54 @@ const moves: Omit<CodeBlock, "id">[] = [
   { move: "right", icon: "→", label: "move right" },
 ];
 
-const levels: Level[] = [
-  { name: "Meadow Walk", hint: "Go around the rock to reach the star!", start: 35, goal: 11, rocks: [28, 21, 22, 15] },
-  { name: "Wiggly Woods", hint: "Find a safe path between the trees.", start: 36, goal: 5, rocks: [29, 30, 23, 16, 17, 10] },
-  { name: "Castle Trail", hint: "Climb to the castle without bumping a rock.", start: 39, goal: 1, rocks: [32, 25, 24, 17, 10, 9] },
+const themes = [
+  { place: "Meadow", obstacle: "🪨", prize: "⭐", hint: "Go around the rocks to reach the shining star!" },
+  { place: "Woods", obstacle: "🌲", prize: "🍎", hint: "Find a safe path between the trees." },
+  { place: "Garden", obstacle: "🌻", prize: "🦋", hint: "Wind through the flowers to meet the butterfly." },
+  { place: "Mountain", obstacle: "⛰️", prize: "🏰", hint: "Climb around the mountains to reach the castle." },
+  { place: "Pond", obstacle: "💧", prize: "🐸", hint: "Keep your paws dry and find the friendly frog." },
 ];
+const adventures = ["Walk", "Trail", "Quest", "Crossing", "Puzzle", "Path", "Adventure", "Journey", "Challenge", "Maze"];
+
+function randomFor(seed: number) {
+  let value = seed;
+  return () => { value = (value * 1664525 + 1013904223) >>> 0; return value / 4294967296; };
+}
+
+function pathLength(start: number, goal: number, blocked: Set<number>) {
+  const queue: [number, number][] = [[start, 0]], seen = new Set([start]);
+  while (queue.length) {
+    const [cell, distance] = queue.shift()!;
+    if (cell === goal) return distance;
+    const row = Math.floor(cell / 7), col = cell % 7;
+    const nearby = [row > 0 ? cell - 7 : -1, row < 5 ? cell + 7 : -1, col > 0 ? cell - 1 : -1, col < 6 ? cell + 1 : -1];
+    for (const next of nearby) if (next >= 0 && !blocked.has(next) && !seen.has(next)) { seen.add(next); queue.push([next, distance + 1]); }
+  }
+  return -1;
+}
+
+function makeLevels(): Level[] {
+  return Array.from({ length: 50 }, (_, index) => {
+    const theme = themes[index % themes.length];
+    const random = randomFor(7001 + index * 97);
+    const start = 35 + Math.floor(random() * 7);
+    const goal = Math.floor(random() * 7);
+    const obstacleCount = Math.min(13, 4 + Math.floor(index / 5));
+    let rocks: number[] = [];
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const picked = new Set<number>();
+      while (picked.size < obstacleCount) {
+        const cell = Math.floor(random() * 42);
+        if (cell !== start && cell !== goal) picked.add(cell);
+      }
+      const distance = pathLength(start, goal, picked);
+      if (distance >= 7 && distance <= 18) { rocks = [...picked]; break; }
+    }
+    return { name: `${theme.place} ${adventures[Math.floor(index / 5)]}`, hint: theme.hint, start, goal, rocks, obstacle: theme.obstacle, prize: theme.prize };
+  });
+}
+
+const levels = makeLevels();
 
 export default function Home() {
   const [levelIndex, setLevelIndex] = useState(0);
@@ -107,8 +150,8 @@ export default function Home() {
           <div className="panel-title"><span>3</span><div><b>Reach the goal!</b><small>Watch Pip follow every move</small></div></div>
           <div className="map-board">
             {Array.from({ length: 42 }, (_, cell) => <div className={`map-cell ${(Math.floor(cell / 7) + cell) % 2 ? "grass-two" : ""}`} key={cell}>
-              {cell === level.goal && <div className="goal" aria-label="Goal">{levelIndex === 2 ? "🏰" : "⭐"}</div>}
-              {level.rocks.includes(cell) && <div className="rock" aria-label="Obstacle">{levelIndex === 1 ? "🌲" : "🪨"}</div>}
+              {cell === level.goal && <div className="goal" aria-label="Goal">{level.prize}</div>}
+              {level.rocks.includes(cell) && <div className="rock" aria-label="Obstacle">{level.obstacle}</div>}
               {cell === position && <div className={`map-pip ${running ? "walking" : ""}`} aria-label="Pip">🦊</div>}
             </div>)}
             {won && <div className="win-card"><span>🎉</span><b>Goal reached!</b><button onClick={nextLevel}>Next map →</button></div>}
