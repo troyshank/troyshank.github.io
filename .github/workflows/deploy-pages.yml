@@ -16,6 +16,8 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    env:
+      NEXT_PUBLIC_BASE_PATH: /sprout
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -32,12 +34,17 @@ jobs:
         run: npm ci
       - name: Build static site
         run: npm run build:pages
+      - name: Place Sprout in its subdirectory
+        run: |
+          mkdir -p publish/sprout
+          cp -R out/. publish/sprout/
+          cp .github/pages-root/index.html publish/index.html
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./out
+          path: ./publish
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4

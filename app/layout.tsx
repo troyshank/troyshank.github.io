@@ -4,7 +4,8 @@ import "./globals.css";
 const repository = process.env.GITHUB_REPOSITORY ?? "";
 const [owner = "", repo = ""] = repository.split("/");
 const isUserSite = repo.endsWith(".github.io");
-const sitePath = repo && !isUserSite ? `/${repo}` : "";
+const inferredPath = repo && !isUserSite ? `/${repo}` : "";
+const sitePath = process.env.NEXT_PUBLIC_BASE_PATH ?? inferredPath;
 const siteUrl = owner ? `https://${owner}.github.io${sitePath}` : "http://localhost:3000";
 
 export const metadata: Metadata = {
