@@ -145,19 +145,25 @@ export default function Home() {
     if (!blocks.length || running) return;
     setRunning(true); setWon(false); setPosition(level.start); setMessage("Pip is following your code…");
     let current = level.start;
+    let blockedMoves = 0;
     await new Promise((r) => setTimeout(r, 350));
     for (const block of blocks) {
       setActive(block.id);
+      await new Promise((r) => setTimeout(r, 120));
       for (let step = 0; step < block.steps; step++) {
         const next = destination(current, block.move);
-        if (next === current) { setMessage(`Pip hit the edge on step ${step + 1} of ${block.steps}.`); setRunning(false); setActive(null); return; }
-        if (!level.openings.has(edgeKey(current, next))) { setMessage(`A wall blocked step ${step + 1} of ${block.steps}. Change the move count or direction.`); setRunning(false); setActive(null); return; }
+        if (next === current || !level.openings.has(edgeKey(current, next))) {
+          blockedMoves += 1;
+          setMessage(`${block.label} was blocked on move ${step + 1}. Continuing to the next command…`);
+          await new Promise((r) => setTimeout(r, 380));
+          break;
+        }
         current = next; setPosition(current);
         await new Promise((r) => setTimeout(r, 420));
         if (current === level.goal) { setWon(true); setCompleted((old) => new Set(old).add(levelIndex)); setMessage("You reached the goal! Amazing coding! ⭐"); setRunning(false); setActive(null); return; }
       }
     }
-    setMessage("Almost! Add more blocks to reach the star."); setRunning(false); setActive(null);
+    setMessage(blockedMoves ? `Program finished. ${blockedMoves} command${blockedMoves === 1 ? " was" : "s were"} blocked—adjust the route and try again.` : "Program finished! Add more commands to reach the goal."); setRunning(false); setActive(null);
   };
 
   return (
