@@ -166,9 +166,13 @@ export default function Home() {
           <div className="map-board">
             {Array.from({ length: 42 }, (_, cell) => {
               const row = Math.floor(cell / 7), col = cell % 7;
-              const wall = "3px solid #294d3f", open = "3px solid transparent";
-              const style = { borderTop: row === 0 || !level.openings.has(edgeKey(cell, cell - 7)) ? wall : open, borderLeft: col === 0 || !level.openings.has(edgeKey(cell, cell - 1)) ? wall : open, borderRight: col === 6 ? wall : open, borderBottom: row === 5 ? wall : open };
-              return <div className={`map-cell ${(row + col) % 2 ? "grass-two" : ""}`} style={style} key={cell}>
+              const topWall = row === 0 || !level.openings.has(edgeKey(cell, cell - 7));
+              const leftWall = col === 0 || !level.openings.has(edgeKey(cell, cell - 1));
+              return <div className={`map-cell ${(row + col) % 2 ? "grass-two" : ""}`} key={cell}>
+              {topWall && <i className="maze-wall wall-top" aria-hidden="true"></i>}
+              {leftWall && <i className="maze-wall wall-left" aria-hidden="true"></i>}
+              {col === 6 && <i className="maze-wall wall-right" aria-hidden="true"></i>}
+              {row === 5 && <i className="maze-wall wall-bottom" aria-hidden="true"></i>}
               {cell === level.goal && <div className="goal" aria-label="Goal">{level.prize}</div>}
               {cell === position && <div className={`map-pip ${running ? "walking" : ""}`} aria-label="Pip">🦊</div>}
             </div>})}
