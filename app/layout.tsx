@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./stone.css";
 
 const repository = process.env.GITHUB_REPOSITORY ?? "";
 const [owner = "", repo = ""] = repository.split("/");
