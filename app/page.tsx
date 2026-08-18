@@ -70,6 +70,7 @@ export default function Home() {
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState("Build a path, then press Play!");
   const [won, setWon] = useState(false);
+  const [completed, setCompleted] = useState<Set<number>>(new Set());
   const nextId = useRef(1);
   const level = levels[levelIndex];
 
@@ -89,6 +90,12 @@ export default function Home() {
     const next = (levelIndex + 1) % levels.length;
     setLevelIndex(next); setPosition(levels[next].start); setBlocks([]); setActive(null); setRunning(false); setWon(false);
     setMessage("New map! Can you reach the goal?");
+  };
+
+  const previousLevel = () => {
+    const previous = (levelIndex - 1 + levels.length) % levels.length;
+    setLevelIndex(previous); setPosition(levels[previous].start); setBlocks([]); setActive(null); setRunning(false); setWon(false);
+    setMessage("Map loaded. Build your path!");
   };
 
   const destination = (from: number, move: Move) => {
@@ -112,33 +119,35 @@ export default function Home() {
       if (level.rocks.includes(next)) { setMessage("Bonk! There’s a rock there. Try another direction."); setRunning(false); setActive(null); return; }
       current = next; setPosition(current);
       await new Promise((r) => setTimeout(r, 520));
-      if (current === level.goal) { setWon(true); setMessage("You reached the goal! Amazing coding! ⭐"); setRunning(false); setActive(null); return; }
+      if (current === level.goal) { setWon(true); setCompleted((old) => new Set(old).add(levelIndex)); setMessage("You reached the goal! Amazing coding! ⭐"); setRunning(false); setActive(null); return; }
     }
     setMessage("Almost! Add more blocks to reach the star."); setRunning(false); setActive(null);
   };
 
   return (
     <main>
-      <header>
-        <a className="brand" href="#"><span className="brand-mark">S</span><strong>SPROUT</strong><em>code, play, grow!</em></a>
-        <button className="pill ghost" onClick={nextLevel}>🗺️ Next map</button>
+      <header className="app-header">
+        <a className="brand" href="#"><span className="brand-mark">S</span><span><strong>Sprout</strong><small>CODE LAB</small></span></a>
+        <div className="header-center"><span className="status-dot"></span>Map Studio</div>
+        <div className="header-actions"><span className="score">★ {completed.size} complete</span><button className="icon-button" aria-label="Help">?</button></div>
       </header>
 
-      <section className="intro map-intro">
-        <div><span className="eyebrow">MAP {levelIndex + 1} OF {levels.length}</span><h1>{level.name}</h1><p>{level.hint}</p></div>
-        <div className="legend"><span>🦊 Start</span><span>⭐ Goal</span><span>🪨 Go around</span></div>
+      <section className="mission-bar">
+        <div className="mission-copy"><span className="eyebrow">CHALLENGE {String(levelIndex + 1).padStart(2, "0")}</span><h1>{level.name}</h1><p>{level.hint}</p></div>
+        <div className="level-progress"><div className="progress-meta"><b>Course progress</b><span>{levelIndex + 1} / {levels.length}</span></div><div className="progress-track"><i style={{ width: `${((levelIndex + 1) / levels.length) * 100}%` }}></i></div></div>
+        <div className="map-navigation"><button onClick={previousLevel} aria-label="Previous map">←</button><select value={levelIndex} onChange={(event) => { const next = Number(event.target.value); setLevelIndex(next); setPosition(levels[next].start); setBlocks([]); setWon(false); setMessage("Map loaded. Build your path!"); }} aria-label="Choose map">{levels.map((item, index) => <option value={index} key={index}>Map {index + 1}: {item.name}</option>)}</select><button onClick={nextLevel} aria-label="Next map">→</button></div>
       </section>
 
       <section className="studio map-studio">
         <aside className="palette panel">
-          <div className="panel-title"><span>1</span><div><b>Pick directions</b><small>Tap to add a move</small></div></div>
+          <div className="panel-title"><span>01</span><div><b>Command library</b><small>Choose a movement block</small></div></div>
           <div className="direction-grid">{moves.map((move) => <button key={move.move} className="direction-button" onClick={() => add(move)} disabled={running}><i>{move.icon}</i><b>{move.label}</b><span>＋</span></button>)}</div>
-          <div className="helper"><b>🌱 Start small</b><p>Add a few blocks, press Play, then fix your path.</p></div>
+          <div className="helper"><span>i</span><div><b>Build, test, improve</b><p>Start with a few moves. Run your code and adjust the path.</p></div></div>
         </aside>
 
         <section className="script panel">
-          <div className="panel-title"><span>2</span><div><b>Build your path</b><small>Moves run top to bottom</small></div></div>
-          <div className="flag-block">🏁 <b>when Play is tapped</b></div>
+          <div className="panel-title"><span>02</span><div><b>Program</b><small>Commands run top to bottom</small></div></div>
+          <div className="flag-block"><span>▶</span><b>When program starts</b></div>
           <div className="script-list">
             {!blocks.length && <div className="empty"><span>☝️</span><b>Your direction blocks go here</b><p>Which way should Pip move first?</p></div>}
             {blocks.map((block, i) => <div className={`path-block ${active === block.id ? "active" : ""}`} key={block.id}><span>{i + 1}</span><i>{block.icon}</i><b>{block.label}</b><button disabled={running} onClick={() => setBlocks((old) => old.filter((b) => b.id !== block.id))} aria-label={`Remove ${block.label}`}>×</button></div>)}
@@ -147,7 +156,7 @@ export default function Home() {
         </section>
 
         <section className="stage-wrap panel map-panel">
-          <div className="panel-title"><span>3</span><div><b>Reach the goal!</b><small>Watch Pip follow every move</small></div></div>
+          <div className="panel-title stage-title"><span>03</span><div><b>Live preview</b><small>Guide Pip to {level.prize}</small></div><div className="legend"><span>🦊 Pip</span><span>{level.prize} Goal</span><span>{level.obstacle} Blocked</span></div></div>
           <div className="map-board">
             {Array.from({ length: 42 }, (_, cell) => <div className={`map-cell ${(Math.floor(cell / 7) + cell) % 2 ? "grass-two" : ""}`} key={cell}>
               {cell === level.goal && <div className="goal" aria-label="Goal">{level.prize}</div>}
@@ -156,8 +165,8 @@ export default function Home() {
             </div>)}
             {won && <div className="win-card"><span>🎉</span><b>Goal reached!</b><button onClick={nextLevel}>Next map →</button></div>}
           </div>
-          <div className={`map-message ${won ? "success" : ""}`}>{message}</div>
-          <div className="play-row"><button className="play" onClick={play} disabled={!blocks.length || running}><span>▶</span>{running ? "Moving…" : "Play my path"}</button><button className="reset" onClick={() => reset(false)} disabled={running} aria-label="Reset Pip">↻</button></div>
+          <div className={`map-message ${won ? "success" : ""}`}><span>{won ? "✓" : running ? "●" : "i"}</span>{message}</div>
+          <div className="play-row"><button className="play" onClick={play} disabled={!blocks.length || running}><span>▶</span>{running ? "Running program…" : "Run program"}</button><button className="reset" onClick={() => reset(false)} disabled={running}><span>↻</span> Reset</button></div>
         </section>
       </section>
     </main>
