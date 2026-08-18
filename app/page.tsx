@@ -3,10 +3,11 @@
 import { useRef, useState } from "react";
 
 type Move = "up" | "down" | "left" | "right";
-type CodeBlock = { id: number; move: Move; icon: string; label: string };
+type CodeBlock = { id: number; move: Move; icon: string; label: string; steps: number };
+type BlockTemplate = Omit<CodeBlock, "id" | "steps">;
 type Level = { name: string; hint: string; start: number; goal: number; openings: Set<string>; prize: string };
 
-const moves: Omit<CodeBlock, "id">[] = [
+const moves: BlockTemplate[] = [
   { move: "up", icon: "↑", label: "move up" },
   { move: "down", icon: "↓", label: "move down" },
   { move: "left", icon: "←", label: "move left" },
@@ -91,10 +92,14 @@ export default function Home() {
   const level = levels[levelIndex];
   const hallways = hallwayTiles(level);
 
-  const add = (move: Omit<CodeBlock, "id">) => {
+  const add = (move: BlockTemplate) => {
     if (running || blocks.length >= 60) return;
-    setBlocks((old) => [...old, { ...move, id: nextId.current++ }]);
+    setBlocks((old) => [...old, { ...move, steps: 1, id: nextId.current++ }]);
     setMessage("Great! Keep going or press Play.");
+  };
+
+  const changeSteps = (id: number, change: number) => {
+    setBlocks((old) => old.map((block) => block.id === id ? { ...block, steps: Math.max(1, Math.min(9, block.steps + change)) } : block));
   };
 
   const reset = (clearCode = false) => {
@@ -131,12 +136,14 @@ export default function Home() {
     await new Promise((r) => setTimeout(r, 350));
     for (const block of blocks) {
       setActive(block.id);
-      const next = destination(current, block.move);
-      if (next === current) { setMessage("Oops—Pip reached the edge! Fix a block and try again."); setRunning(false); setActive(null); return; }
-      if (!level.openings.has(edgeKey(current, next))) { setMessage("That way is blocked by a wall. Try another direction."); setRunning(false); setActive(null); return; }
-      current = next; setPosition(current);
-      await new Promise((r) => setTimeout(r, 520));
-      if (current === level.goal) { setWon(true); setCompleted((old) => new Set(old).add(levelIndex)); setMessage("You reached the goal! Amazing coding! ⭐"); setRunning(false); setActive(null); return; }
+      for (let step = 0; step < block.steps; step++) {
+        const next = destination(current, block.move);
+        if (next === current) { setMessage(`Pip hit the edge on step ${step + 1} of ${block.steps}.`); setRunning(false); setActive(null); return; }
+        if (!level.openings.has(edgeKey(current, next))) { setMessage(`A wall blocked step ${step + 1} of ${block.steps}. Change the move count or direction.`); setRunning(false); setActive(null); return; }
+        current = next; setPosition(current);
+        await new Promise((r) => setTimeout(r, 420));
+        if (current === level.goal) { setWon(true); setCompleted((old) => new Set(old).add(levelIndex)); setMessage("You reached the goal! Amazing coding! ⭐"); setRunning(false); setActive(null); return; }
+      }
     }
     setMessage("Almost! Add more blocks to reach the star."); setRunning(false); setActive(null);
   };
@@ -164,7 +171,7 @@ export default function Home() {
           <div className="console-heading"><div><small>CODE BUILDER</small><h2>Program Pip</h2></div><span>{blocks.length} / 60</span></div>
           <div className="command-dock">{moves.map((move) => <button key={move.move} className="direction-button" onClick={() => add(move)} disabled={running}><i>{move.icon}</i><span>{move.label.replace("move ", "")}</span><b>＋</b></button>)}</div>
           <div className="timeline-head"><span className="start-gem">▶</span><div><b>On adventure start</b><small>Runs from top to bottom</small></div></div>
-          <div className="script-list">{!blocks.length && <div className="empty"><span>＋</span><b>Build your first route</b><p>Choose a direction above to add a command.</p></div>}{blocks.map((block, i) => <div className={`path-block ${active === block.id ? "active" : ""}`} key={block.id}><span>{String(i + 1).padStart(2, "0")}</span><i>{block.icon}</i><b>{block.label}</b><button disabled={running} onClick={() => setBlocks((old) => old.filter((b) => b.id !== block.id))}>×</button></div>)}</div>
+          <div className="script-list">{!blocks.length && <div className="empty"><span>＋</span><b>Build your first route</b><p>Choose a direction above to add a command.</p></div>}{blocks.map((block, i) => <div className={`path-block ${active === block.id ? "active" : ""}`} key={block.id}><span>{String(i + 1).padStart(2, "0")}</span><i>{block.icon}</i><b>{block.label}</b><div className="stepper" aria-label={`${block.steps} moves`}><button disabled={running || block.steps === 1} onClick={() => changeSteps(block.id, -1)}>−</button><strong>{block.steps}<small>{block.steps === 1 ? " move" : " moves"}</small></strong><button disabled={running || block.steps === 9} onClick={() => changeSteps(block.id, 1)}>＋</button></div><button className="delete-block" disabled={running} onClick={() => setBlocks((old) => old.filter((b) => b.id !== block.id))}>×</button></div>)}</div>
           <div className="script-actions"><button disabled={!blocks.length || running} onClick={() => setBlocks((old) => old.slice(0, -1))}>↶ Undo</button><button disabled={!blocks.length || running} onClick={() => reset(true)}>Clear route</button></div>
           <div className="run-dock"><button className="play" onClick={play} disabled={!blocks.length || running}><span>▶</span>{running ? "Running…" : "Run my code"}</button><button className="reset" onClick={() => reset(false)} disabled={running}>↻</button></div>
           <div className="coach-tip"><span>✦</span><p><b>Pip&apos;s tip</b> Test a short route first, then add more commands.</p></div>
